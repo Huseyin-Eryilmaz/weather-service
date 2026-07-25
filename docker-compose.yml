@@ -1,0 +1,97 @@
+# Four services, one command. Compose builds the images, creates a
+# private network where each service is reachable by its own name, and
+# starts them in dependency order.
+#
+# The service names matter: inside this network, "db" resolves to the
+# Postgres container. That is why the default database URL in the
+# settings says `@db:5432` — a hostname that only exists here.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: weather
+      POSTGRES_PASSWORD: weather
+      POSTGRES_DB: weather
+    ports:
+      # Exposed to the host so a GUI like DBeaver can connect. In
+      # production this line would go: nothing outside the network has
+      # any business reaching the database directly.
+      - "5432:5432"
+    volumes:
+      # Without this, every `compose down` would erase the data — the
+      # container's own filesystem disappears with it. A named volume
+      # lives outside the container and survives restarts.
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # "Started" is not the same as "accepting connections". Postgres
+      # takes a few seconds to initialise, and anything that connects in
+      # that window fails. This check is what lets the other services
+      # wait for the real thing.
+      test: ["CMD-SHELL", "pg_isready -U weather -d weather"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  cache:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://weather:weather@db:5432/weather
+      REDIS_URL: redis://cache:6379/0
+      ENVIRONMENT: development
+      DEBUG: "true"
+    volumes:
+      # Bind-mounting the source means an edit on the host is visible
+      # inside the container immediately, and uvicorn's --reload picks
+      # it up. Development only: production images ship their own code.
+      - ./src:/app/src:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    command: >
+      uvicorn weather.api.main:app
+      --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >
+          python -c "import urllib.request;
+          urllib.request.urlopen('http://localhost:8000/health/live')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  worker:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://weather:weather@db:5432/weather
+      REDIS_URL: redis://cache:6379/0
+      ENVIRONMENT: development
+    volumes:
+      - ./src:/app/src:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    # Same image as the API, different entry point.
+    command: python -m weather.workers.main
+
+volumes:
+  pgdata:

@@ -1,0 +1,15 @@
+# Everything here is excluded from the build context — the files Docker
+# copies before building. Smaller context means faster builds, and it
+# keeps local junk (and .env!) out of the image.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.git/
+.github/
+frontend/node_modules/
+frontend/dist/
+.env

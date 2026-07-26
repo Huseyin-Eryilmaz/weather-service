@@ -4,10 +4,10 @@ A weather data pipeline that collects forecasts and observations for
 Turkish cities, then measures how accurate those forecasts turned out to
 be. REST API, scheduled collection, and a web dashboard.
 
-> 🚧 **Status: Phase 4 (REST API).** A paginated read/write API over the
-> data: manage locations, read current conditions, query history and
-> forecasts. Try it at `/docs`. Auth and caching arrive in Phase 5. See
-> the [roadmap](ROADMAP.md).
+> 🚧 **Status: Phase 5 (production hardening).** The API now has API-key
+> auth on writes, Redis-backed rate limiting, and response caching — all
+> fail-open, so a cache outage degrades rather than breaks it. The
+> frontend begins in Phase 8. See the [roadmap](ROADMAP.md).
 
 ## What it does
 
@@ -42,7 +42,11 @@ docker compose down -v  # stop and delete the database
 
 ## Endpoints
 
-Full interactive docs at `/docs`. In brief:
+Full interactive docs at `/docs`. Reads are open; writes (POST/DELETE)
+require an `X-API-Key` header when `API_KEYS` is configured. Every route
+is rate-limited per caller, and current conditions are cached briefly.
+
+In brief:
 
 | Method | Path | What |
 |---|---|---|

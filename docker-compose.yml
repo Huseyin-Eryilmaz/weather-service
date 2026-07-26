@@ -53,6 +53,11 @@ services:
       REDIS_URL: redis://cache:6379/0
       ENVIRONMENT: development
       DEBUG: "true"
+      # Leave API_KEYS empty in development so writes are open. Set it to a
+      # comma-separated list of secrets to require a key on POST/DELETE.
+      API_KEYS: ""
+      RATE_LIMIT_PER_MINUTE: "60"
+      CACHE_TTL_SECONDS: "60"
     volumes:
       # Bind-mounting the source means an edit on the host is visible
       # inside the container immediately, and uvicorn's --reload picks
@@ -63,9 +68,6 @@ services:
         condition: service_healthy
       cache:
         condition: service_healthy
-    # Bring the schema up to date and load the provinces before serving.
-    # Both steps are idempotent, so this is safe on every start, not just
-    # the first — a new migration is applied, an existing one is skipped.
     command: sh -c "alembic upgrade head && python -m weather.db.seed && uvicorn weather.api.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src"
     healthcheck:
       test:

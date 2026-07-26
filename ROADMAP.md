@@ -55,14 +55,14 @@ is counted, not fatal; re-running adds no duplicates.
 **Acceptance:** every endpoint usable from `/docs`; invalid input gives a
 clear 422; a duplicate location gives 409.
 
-## Phase 5 — Production hardening
-- [ ] API key authentication
-- [ ] Rate limiting
-- [ ] Redis response caching with sensible TTLs
-- [ ] Request ID middleware
+## Phase 5 — Production hardening `v0.5.0` ✅
+- [x] API key authentication (asymmetric: reads open, writes require a key)
+- [x] Rate limiting via Redis, fail-open if the cache is down
+- [x] Response caching for current conditions, with a TTL
+- [x] Auth disabled by default in development (no keys → open)
 
-**Acceptance:** unauthenticated requests 401, floods 429, repeat queries
-measurably faster.
+**Acceptance:** unauthenticated writes get 401, floods get 429, a repeated
+current-conditions query is served from Redis.
 
 ## Phase 6 — Forecast accuracy
 - [ ] Match forecasts to observations by target time

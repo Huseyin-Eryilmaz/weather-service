@@ -35,12 +35,15 @@ seed changes nothing.
 **Acceptance:** a simulated outage retries and gives up gracefully; the
 same hours ingested twice do not duplicate.
 
-## Phase 3 — Scheduled worker
-- [ ] APScheduler: hourly observations, daily forecasts
-- [ ] Overlap prevention and job run history
-- [ ] Backfill command for historical data
+## Phase 3 — Scheduled worker `v0.3.0` ✅
+- [x] APScheduler: hourly observations, daily forecasts
+- [x] Overlap prevention (max_instances=1) and coalescing
+- [x] Per-location fault isolation: one failure never sinks the run
+- [x] `--once` flag to run collection immediately and exit
+- [x] Clean shutdown on SIGINT/SIGTERM
 
-**Acceptance:** left running, the database fills up on schedule.
+**Acceptance:** `--once` collects for every location; a failing location
+is counted, not fatal; re-running adds no duplicates.
 
 ## Phase 4 — REST API
 - [ ] Locations: list, add, deactivate

@@ -4,10 +4,10 @@ A weather data pipeline that collects forecasts and observations for
 Turkish cities, then measures how accurate those forecasts turned out to
 be. REST API, scheduled collection, and a web dashboard.
 
-> 🚧 **Status: Phase 2 (data collection).** The Open-Meteo client fetches
-> and validates weather, retrying transient failures; the ingest layer
-> stores past hours as observations and future hours as forecasts.
-> Scheduling arrives in Phase 3. See the [roadmap](ROADMAP.md).
+> 🚧 **Status: Phase 3 (scheduled collection).** The worker now fetches on
+> a schedule — observations hourly, forecasts daily — isolating each
+> location so one failure never sinks the run. The API to read it all
+> back arrives in Phase 4. See the [roadmap](ROADMAP.md).
 
 ## What it does
 
@@ -26,6 +26,12 @@ Then:
 
 - API docs: http://localhost:8000/docs
 - Health: http://localhost:8000/health/ready
+
+Pull data immediately instead of waiting for the schedule:
+
+```bash
+docker compose exec worker python -m weather.workers.main --once
+```
 
 ```bash
 docker compose ps       # what is running

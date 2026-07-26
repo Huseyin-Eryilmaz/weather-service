@@ -6,7 +6,11 @@ from pydantic import ValidationError
 from weather.core.config import Settings, get_settings
 
 
-def test_defaults_are_usable_without_any_environment():
+def test_defaults_are_usable_without_any_environment(monkeypatch):
+    """The defaults must hold on a clean environment, so the ambient
+    variables the test runner may have set are cleared first."""
+    for var in ("APP_NAME", "ENVIRONMENT", "DEBUG"):
+        monkeypatch.delenv(var, raising=False)
     settings = Settings()
     assert settings.app_name == "weather-service"
     assert settings.environment == "development"

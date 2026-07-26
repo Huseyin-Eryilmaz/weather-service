@@ -53,6 +53,25 @@ class Settings(BaseSettings):
     http_timeout_seconds: float = 15.0
     http_max_retries: int = 3
 
+    # --- Security ----------------------------------------------------
+    # Comma-separated API keys accepted for write endpoints. Empty means
+    # auth is disabled — convenient in development, and the reason the
+    # dependency treats "no keys configured" as "open".
+    api_keys: str = ""
+
+    # --- Rate limiting ----------------------------------------------
+    rate_limit_per_minute: int = 60
+    rate_limit_enabled: bool = True
+
+    # --- Cache ------------------------------------------------------
+    cache_ttl_seconds: int = 60
+    cache_enabled: bool = True
+
+    @property
+    def api_key_set(self) -> set[str]:
+        """The configured keys as a set, empty if none are set."""
+        return {k.strip() for k in self.api_keys.split(",") if k.strip()}
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"

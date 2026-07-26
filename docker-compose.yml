@@ -63,9 +63,10 @@ services:
         condition: service_healthy
       cache:
         condition: service_healthy
-    command: >
-      uvicorn weather.api.main:app
-      --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src
+    # Bring the schema up to date and load the provinces before serving.
+    # Both steps are idempotent, so this is safe on every start, not just
+    # the first — a new migration is applied, an existing one is skipped.
+    command: sh -c "alembic upgrade head && python -m weather.db.seed && uvicorn weather.api.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src"
     healthcheck:
       test:
         - CMD-SHELL

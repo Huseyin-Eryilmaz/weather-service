@@ -4,9 +4,9 @@ A weather data pipeline that collects forecasts and observations for
 Turkish cities, then measures how accurate those forecasts turned out to
 be. REST API, scheduled collection, and a web dashboard.
 
-> 🚧 **Status: Phase 0 (scaffolding).** Four services come up together
-> and report their health; data collection starts in Phase 2. See the
-> [roadmap](ROADMAP.md).
+> 🚧 **Status: Phase 1 (database).** Four services come up, the schema is
+> migrated, and 81 provinces are loaded on startup. Data collection
+> starts in Phase 2. See the [roadmap](ROADMAP.md).
 
 ## What it does
 

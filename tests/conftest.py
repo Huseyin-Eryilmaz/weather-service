@@ -1,27 +1,25 @@
 """Shared test fixtures.
 
-Two kinds of test live in this suite. Pure tests (config, data files, the
-health endpoint with fakes) need nothing external. Database tests need a
-real Postgres, because the whole point of the code under test — upserts
-via ON CONFLICT — is a Postgres feature that SQLite cannot stand in for.
-
-The database fixtures therefore connect to a real server (the one CI
-starts as a service container, or a local one) and are skipped cleanly
-when none is reachable, so `pytest` still runs everywhere.
+Three kinds of test live in this suite. Pure tests (config, data files,
+the health endpoint with fakes) need nothing external. Endpoint tests
+need a real Postgres, because the upserts under test are a Postgres
+feature. Security tests additionally need Redis, for rate limiting and
+caching. The database and Redis fixtures skip cleanly when their service
+is unreachable, so `pytest` still runs everywhere.
 """
 
 from __future__ import annotations
 
+import contextlib
 import os
 from collections.abc import AsyncIterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from weather.api.main import create_app
-from weather.core.config import Settings
+from weather.core.config import Settings, get_settings
 from weather.db.base import Base, make_engine, make_session_factory
 
 
@@ -45,26 +43,24 @@ def _test_database_url() -> str:
     )
 
 
-@pytest.fixture()
-async def api_client() -> AsyncIterator[AsyncClient]:
-    """A client bound to the app, backed by a real, freshly-migrated DB.
+def _test_redis_url() -> str:
+    return os.environ.get("TEST_REDIS_URL", "redis://localhost:6379/0")
 
-    Unlike the `client` fixture (which uses fake dependencies for the
-    health tests), this runs the app's real lifespan so handlers get real
-    database sessions — the way the endpoint tests need.
+
+async def _make_api_client(settings: Settings) -> AsyncIterator[AsyncClient]:
+    """A client over a freshly-migrated DB, built with the given settings.
+
+    The settings are passed to `create_app`, which stashes them where the
+    lifespan and the auth/rate-limit/cache code all read from — so a test
+    that turns auth on or the cache off actually gets that behaviour.
+    Redis is flushed before and after, so no cached value or rate-limit
+    window leaks between tests.
     """
-    import os
+    os.environ["DATABASE_URL"] = _test_database_url()
+    os.environ["REDIS_URL"] = _test_redis_url()
+    get_settings.cache_clear()
 
-    from weather.core.config import get_settings
-
-    url = _test_database_url()
-    os.environ["DATABASE_URL"] = url
-    os.environ["REDIS_URL"] = os.environ.get(
-        "TEST_REDIS_URL", "redis://localhost:6379/0"
-    )
-    get_settings.cache_clear()  # forget any settings built with other URLs
-
-    engine = make_engine(url)
+    engine = make_engine(_test_database_url())
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
@@ -74,24 +70,60 @@ async def api_client() -> AsyncIterator[AsyncClient]:
         pytest.skip("no Postgres reachable for API tests")
     await engine.dispose()
 
-    app = create_app(Settings(environment="test"))
+    app = create_app(settings)
     transport = ASGITransport(app=app)
     async with (
         app.router.lifespan_context(app),
         AsyncClient(transport=transport, base_url="http://test") as ac,
     ):
+        # Flush Redis so no cached value or rate-limit window leaks in from
+        # a previous test. If Redis is unreachable the app is fail-open, so
+        # a flush failure is not a reason to skip — only the handful of
+        # tests that assert on caching or throttling need a live Redis, and
+        # they check for it themselves.
+        async def _flush() -> None:
+            with contextlib.suppress(Exception):
+                await app.state.cache.flushdb()
+
+        await _flush()
+        try:
+            yield ac
+        finally:
+            await _flush()
+
+
+def make_test_settings(**overrides) -> Settings:
+    """Settings pointed at the test database and Redis, plus any overrides.
+
+    The URLs must live on the settings object, not just the environment,
+    because the lifespan builds its engine and cache from these — the
+    default `redis://cache:6379` would try to reach the compose hostname
+    and fail outside Docker.
+    """
+    base = {
+        "environment": "test",
+        "database_url": _test_database_url(),
+        "redis_url": _test_redis_url(),
+    }
+    base.update(overrides)
+    return Settings(**base)
+
+
+@pytest.fixture()
+async def api_client() -> AsyncIterator[AsyncClient]:
+    """The default endpoint client: auth and rate limiting off, cache off,
+    so the general endpoint tests are neither throttled nor served stale
+    values. Security tests build their own client with these turned on."""
+    settings = make_test_settings(rate_limit_enabled=False, cache_enabled=False)
+    async for ac in _make_api_client(settings):
         yield ac
 
 
 @pytest.fixture()
 async def db_session() -> AsyncIterator[AsyncSession]:
-    """A session against a real Postgres, with a clean schema each time.
+    """A session against a real Postgres, with a clean schema each time."""
+    from sqlalchemy import text
 
-    The tables are dropped and recreated per test, so tests never see one
-    another's rows. Slower than a shared schema, but the isolation is
-    worth it for a suite this size, and it removes an entire class of
-    order-dependent flakes.
-    """
     engine = make_engine(_test_database_url())
     try:
         async with engine.begin() as conn:

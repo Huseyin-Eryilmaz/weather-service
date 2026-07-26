@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from weather.api.cache import cached_json
 from weather.api.dependencies import get_db_session
 from weather.api.schemas import (
     ForecastPage,
@@ -39,17 +40,35 @@ async def _require_location(session: AsyncSession, location_id: int) -> None:
 @router.get("/current", response_model=WeatherPoint)
 async def current_conditions(
     location_id: int,
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
 ) -> WeatherPoint:
-    """The most recent observation for a location."""
+    """The most recent observation for a location, cached briefly.
+
+    The same current-conditions query can arrive many times a minute; the
+    cache turns all but the first into a Redis lookup. On a miss, or if
+    Redis is down, the value is computed fresh from the database.
+    """
     await _require_location(session, location_id)
-    observation = await queries.latest_observation(session, location_id)
-    if observation is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            detail="no observations recorded for this location yet",
-        )
-    return WeatherPoint.model_validate(observation)
+    settings = request.app.state.settings
+
+    async def produce() -> dict:
+        observation = await queries.latest_observation(session, location_id)
+        if observation is None:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail="no observations recorded for this location yet",
+            )
+        return WeatherPoint.model_validate(observation).model_dump(mode="json")
+
+    payload = await cached_json(
+        request.app.state.cache,
+        key=f"current:{location_id}",
+        ttl=settings.cache_ttl_seconds,
+        produce=produce,
+        enabled=settings.cache_enabled,
+    )
+    return WeatherPoint.model_validate(payload)
 
 
 @router.get("/observations", response_model=ObservationPage)

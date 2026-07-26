@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from weather.api.dependencies import get_db_session
 from weather.api.schemas import LocationCreate, LocationOut
+from weather.api.security import require_api_key
 from weather.db import queries
 
 router = APIRouter(prefix="/locations", tags=["locations"])
@@ -39,7 +40,12 @@ async def get_location(
     return LocationOut.model_validate(location)
 
 
-@router.post("", response_model=LocationOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=LocationOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_key)],
+)
 async def create_location(
     body: LocationCreate,
     session: AsyncSession = Depends(get_db_session),
@@ -68,7 +74,11 @@ async def create_location(
     return LocationOut.model_validate(location)
 
 
-@router.delete("/{location_id}", response_model=LocationOut)
+@router.delete(
+    "/{location_id}",
+    response_model=LocationOut,
+    dependencies=[Depends(require_api_key)],
+)
 async def deactivate_location(
     location_id: int,
     session: AsyncSession = Depends(get_db_session),

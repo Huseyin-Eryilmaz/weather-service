@@ -26,7 +26,7 @@ from typing import Literal
 
 import redis.asyncio as aioredis
 import structlog
-from fastapi import FastAPI, status
+from fastapi import Depends, FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -49,7 +49,11 @@ class HealthResponse(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Opens shared resources at startup and closes them at shutdown."""
-    settings = get_settings()
+    # Use the settings the app was built with, if any, so a test that
+    # constructs the app with its own settings (auth on, cache off) sees
+    # them here too — rather than lifespan quietly re-reading the cached
+    # global and undoing the override.
+    settings = getattr(app.state, "settings", None) or get_settings()
 
     engine = create_async_engine(
         str(settings.database_url),
@@ -87,10 +91,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title=settings.app_name,
-        version="0.0.1",
+        version="0.1.0",
         description="Weather data with forecast accuracy tracking",
         lifespan=lifespan,
     )
+
+    # Stash the chosen settings so lifespan uses these, not the cached
+    # global — this is what lets tests override auth, cache and limits.
+    app.state.settings = settings
 
     # The React frontend runs on a different port during development,
     # which browsers treat as a different origin. Without this, every
@@ -103,11 +111,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
+    from weather.api.ratelimit import enforce_rate_limit
     from weather.api.routers import locations
     from weather.api.routers import weather as weather_router
 
-    app.include_router(locations.router)
-    app.include_router(weather_router.router)
+    # Rate limiting applies to every route, so it is a router-level
+    # dependency rather than something each endpoint remembers to add.
+    app.include_router(locations.router, dependencies=[Depends(enforce_rate_limit)])
+    app.include_router(
+        weather_router.router, dependencies=[Depends(enforce_rate_limit)]
+    )
 
     @app.get("/health/live", response_model=HealthResponse, tags=["health"])
     async def health_live() -> HealthResponse:

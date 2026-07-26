@@ -45,13 +45,15 @@ same hours ingested twice do not duplicate.
 **Acceptance:** `--once` collects for every location; a failing location
 is counted, not fatal; re-running adds no duplicates.
 
-## Phase 4 — REST API
-- [ ] Locations: list, add, deactivate
-- [ ] Current conditions, historical range queries, pagination
-- [ ] Pydantic response schemas, consistent error format
+## Phase 4 — REST API `v0.4.0` ✅
+- [x] Locations: list, fetch, add (409 on duplicate), deactivate (soft)
+- [x] Current conditions, observation history, forecasts
+- [x] Date-range filtering and limit/offset pagination with totals
+- [x] `latest_only` forecasts: newest prediction per hour, or full history
+- [x] Request validation → 422; missing resources → 404; capped page size
 
 **Acceptance:** every endpoint usable from `/docs`; invalid input gives a
-clear 422.
+clear 422; a duplicate location gives 409.
 
 ## Phase 5 — Production hardening
 - [ ] API key authentication

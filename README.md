@@ -4,10 +4,10 @@ A weather data pipeline that collects forecasts and observations for
 Turkish cities, then measures how accurate those forecasts turned out to
 be. REST API, scheduled collection, and a web dashboard.
 
-> 🚧 **Status: Phase 3 (scheduled collection).** The worker now fetches on
-> a schedule — observations hourly, forecasts daily — isolating each
-> location so one failure never sinks the run. The API to read it all
-> back arrives in Phase 4. See the [roadmap](ROADMAP.md).
+> 🚧 **Status: Phase 4 (REST API).** A paginated read/write API over the
+> data: manage locations, read current conditions, query history and
+> forecasts. Try it at `/docs`. Auth and caching arrive in Phase 5. See
+> the [roadmap](ROADMAP.md).
 
 ## What it does
 
@@ -39,6 +39,20 @@ docker compose logs -f  # follow the logs
 docker compose down     # stop (data survives)
 docker compose down -v  # stop and delete the database
 ```
+
+## Endpoints
+
+Full interactive docs at `/docs`. In brief:
+
+| Method | Path | What |
+|---|---|---|
+| GET | `/locations` | list active locations (`?active_only=false` for all) |
+| POST | `/locations` | add a location (409 if the coordinates exist) |
+| GET | `/locations/{id}` | one location |
+| DELETE | `/locations/{id}` | deactivate (keeps history, stops collection) |
+| GET | `/locations/{id}/current` | most recent observation |
+| GET | `/locations/{id}/observations` | history, paginated, date-filterable |
+| GET | `/locations/{id}/forecasts` | forecasts (`?latest_only=false` for all) |
 
 ## Architecture
 

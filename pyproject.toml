@@ -50,3 +50,6 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+# B008 fires on FastAPI's Depends()/Query() in argument defaults, which is
+# the framework's intended, idiomatic usage — not a bug.
+ignore = ["B008"]

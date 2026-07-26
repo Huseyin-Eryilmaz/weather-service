@@ -46,6 +46,44 @@ def _test_database_url() -> str:
 
 
 @pytest.fixture()
+async def api_client() -> AsyncIterator[AsyncClient]:
+    """A client bound to the app, backed by a real, freshly-migrated DB.
+
+    Unlike the `client` fixture (which uses fake dependencies for the
+    health tests), this runs the app's real lifespan so handlers get real
+    database sessions — the way the endpoint tests need.
+    """
+    import os
+
+    from weather.core.config import get_settings
+
+    url = _test_database_url()
+    os.environ["DATABASE_URL"] = url
+    os.environ["REDIS_URL"] = os.environ.get(
+        "TEST_REDIS_URL", "redis://localhost:6379/0"
+    )
+    get_settings.cache_clear()  # forget any settings built with other URLs
+
+    engine = make_engine(url)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception:  # noqa: BLE001
+        await engine.dispose()
+        pytest.skip("no Postgres reachable for API tests")
+    await engine.dispose()
+
+    app = create_app(Settings(environment="test"))
+    transport = ASGITransport(app=app)
+    async with (
+        app.router.lifespan_context(app),
+        AsyncClient(transport=transport, base_url="http://test") as ac,
+    ):
+        yield ac
+
+
+@pytest.fixture()
 async def db_session() -> AsyncIterator[AsyncSession]:
     """A session against a real Postgres, with a clean schema each time.
 

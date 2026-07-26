@@ -34,6 +34,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from weather.core.config import Settings, get_settings
+from weather.db.base import make_session_factory
 
 log = structlog.get_logger()
 
@@ -62,6 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     cache = aioredis.from_url(str(settings.redis_url), decode_responses=True)
 
     app.state.engine = engine
+    app.state.session_factory = make_session_factory(engine)
     app.state.cache = cache
     app.state.settings = settings
 
@@ -100,6 +102,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    from weather.api.routers import locations
+    from weather.api.routers import weather as weather_router
+
+    app.include_router(locations.router)
+    app.include_router(weather_router.router)
 
     @app.get("/health/live", response_model=HealthResponse, tags=["health"])
     async def health_live() -> HealthResponse:

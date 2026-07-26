@@ -25,14 +25,15 @@ returns 200 with every dependency "ok".
 **Acceptance:** tables visible in a GUI, provinces loaded, re-running the
 seed changes nothing.
 
-## Phase 2 — Open-Meteo client
-- [ ] Async httpx client with timeouts
-- [ ] Retry with exponential backoff; transient vs permanent errors
-- [ ] Response validation with Pydantic
-- [ ] Recorded real responses as test fixtures
+## Phase 2 — Open-Meteo client `v0.2.0` ✅
+- [x] Async httpx client with timeouts
+- [x] Retry with exponential backoff; transient vs permanent errors
+- [x] Response validation with Pydantic (parallel arrays → hourly records)
+- [x] Ingest layer: past hours → observations, future → forecasts
+- [x] Mock-transport tests for the retry policy; real-Postgres tests for ingest
 
-**Acceptance:** real data lands in the database; a simulated outage
-retries and gives up gracefully instead of crashing.
+**Acceptance:** a simulated outage retries and gives up gracefully; the
+same hours ingested twice do not duplicate.
 
 ## Phase 3 — Scheduled worker
 - [ ] APScheduler: hourly observations, daily forecasts

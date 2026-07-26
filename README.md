@@ -4,9 +4,10 @@ A weather data pipeline that collects forecasts and observations for
 Turkish cities, then measures how accurate those forecasts turned out to
 be. REST API, scheduled collection, and a web dashboard.
 
-> 🚧 **Status: Phase 1 (database).** Four services come up, the schema is
-> migrated, and 81 provinces are loaded on startup. Data collection
-> starts in Phase 2. See the [roadmap](ROADMAP.md).
+> 🚧 **Status: Phase 2 (data collection).** The Open-Meteo client fetches
+> and validates weather, retrying transient failures; the ingest layer
+> stores past hours as observations and future hours as forecasts.
+> Scheduling arrives in Phase 3. See the [roadmap](ROADMAP.md).
 
 ## What it does
 

@@ -1,46 +1,113 @@
-"""The background worker's entry point.
+"""The worker process: build the pieces, start the scheduler, stay alive.
 
-Phase 0 gives it a heartbeat and nothing else: it starts, logs, and
-stays alive. That is enough to prove the service definition, the shared
-image and the compose wiring all work — the actual scheduled jobs arrive
-in Phase 3.
+Phase 0's heartbeat is gone. The worker now owns three long-lived things
+— a database engine, an HTTP client, and the scheduler — and its job is
+to build them, start the clock, and keep running until asked to stop.
 
-It shares the codebase with the API but runs as a separate process, for
-the usual reason: a slow data fetch should never make an HTTP request
-wait, and the two need to scale and fail independently.
+The `--once` flag runs both jobs immediately and exits, without the
+scheduler. That is how the collection is tested end to end by hand, and
+how the very first batch of data is pulled without waiting for the top of
+the hour.
 """
 
 from __future__ import annotations
 
+import argparse
 import asyncio
+import signal
 
+import httpx
 import structlog
 
+from weather.clients.open_meteo import OpenMeteoClient
 from weather.core.config import get_settings
 from weather.core.logging import configure_logging
+from weather.db.base import make_engine, make_session_factory
+from weather.workers.jobs import collect_forecasts, collect_observations
+from weather.workers.scheduler import build_scheduler
 
 log = structlog.get_logger()
 
-HEARTBEAT_SECONDS = 30
 
-
-async def run() -> None:
+def _make_client(http: httpx.AsyncClient) -> OpenMeteoClient:
     settings = get_settings()
-    configure_logging(json_output=settings.is_production)
-    log.info("worker_started", environment=settings.environment)
+    return OpenMeteoClient(
+        http,
+        forecast_url=settings.open_meteo_forecast_url,
+        archive_url=settings.open_meteo_archive_url,
+        max_retries=settings.http_max_retries,
+    )
 
-    while True:
-        log.info("worker_heartbeat")
-        await asyncio.sleep(HEARTBEAT_SECONDS)
+
+async def run_once() -> None:
+    """Run both collection jobs a single time, then return."""
+    settings = get_settings()
+    engine = make_engine(str(settings.database_url))
+    factory = make_session_factory(engine)
+
+    timeout = httpx.Timeout(settings.http_timeout_seconds)
+    async with httpx.AsyncClient(timeout=timeout) as http:
+        client = _make_client(http)
+        await collect_forecasts(factory, client)
+        await collect_observations(factory, client)
+
+    await engine.dispose()
+
+
+async def run_forever() -> None:
+    """Start the scheduler and block until a stop signal arrives."""
+    settings = get_settings()
+    engine = make_engine(str(settings.database_url))
+    factory = make_session_factory(engine)
+
+    timeout = httpx.Timeout(settings.http_timeout_seconds)
+    async with httpx.AsyncClient(timeout=timeout) as http:
+        client = _make_client(http)
+        scheduler = build_scheduler(factory, client)
+
+        # A future that a signal handler resolves, so the process waits
+        # here until the OS asks it to stop — the clean way to keep an
+        # async program alive without a busy loop.
+        stop = asyncio.get_running_loop().create_future()
+
+        def _request_stop() -> None:
+            if not stop.done():
+                stop.set_result(None)
+
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, _request_stop)
+
+        scheduler.start()
+        log.info("scheduler_started", jobs=[j.id for j in scheduler.get_jobs()])
+        try:
+            await stop
+        finally:
+            scheduler.shutdown(wait=False)
+            log.info("scheduler_stopped")
+
+    await engine.dispose()
 
 
 def main() -> None:
-    try:
-        asyncio.run(run())
-    except KeyboardInterrupt:
-        # Docker sends SIGINT/SIGTERM on `compose down`; exiting quietly
-        # keeps the shutdown logs clean instead of printing a traceback.
-        log.info("worker_stopped")
+    parser = argparse.ArgumentParser(description="Weather collection worker")
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        help="run both jobs immediately and exit, without scheduling",
+    )
+    args = parser.parse_args()
+
+    settings = get_settings()
+    configure_logging(json_output=settings.is_production)
+
+    if args.once:
+        asyncio.run(run_once())
+    else:
+        try:
+            asyncio.run(run_forever())
+        except KeyboardInterrupt:
+            log.info("worker_interrupted")
 
 
 if __name__ == "__main__":

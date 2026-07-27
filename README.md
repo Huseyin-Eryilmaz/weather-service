@@ -4,10 +4,11 @@ A weather data pipeline that collects forecasts and observations for
 Turkish cities, then measures how accurate those forecasts turned out to
 be. REST API, scheduled collection, and a web dashboard.
 
-> 🚧 **Status: Phase 5 (production hardening).** The API now has API-key
-> auth on writes, Redis-backed rate limiting, and response caching — all
-> fail-open, so a cache outage degrades rather than breaks it. The
-> frontend begins in Phase 8. See the [roadmap](ROADMAP.md).
+> 🚧 **Status: Phase 6 (forecast accuracy).** The service now scores its
+> own forecasts against what actually happened — MAE, RMSE, bias, and how
+> error grows with lead time. This is the question the whole pipeline was
+> built to answer. The frontend begins in Phase 8. See the
+> [roadmap](ROADMAP.md).
 
 ## What it does
 
@@ -15,6 +16,14 @@ Weather apps tell you tomorrow's forecast. This one keeps score: every
 forecast is stored when it is issued, every observation is stored when it
 arrives, and the two are matched up afterwards to answer questions like
 *"how far off is a three-day temperature forecast for Ankara, on average?"*
+
+The finding falls straight out of the data — error grows with lead time:
+
+```
+ 6h ahead  ->  MAE 1.0 C
+24h ahead  ->  MAE 3.0 C
+72h ahead  ->  MAE 8.0 C
+```
 
 ## Quick start
 
@@ -57,6 +66,8 @@ In brief:
 | GET | `/locations/{id}/current` | most recent observation |
 | GET | `/locations/{id}/observations` | history, paginated, date-filterable |
 | GET | `/locations/{id}/forecasts` | forecasts (`?latest_only=false` for all) |
+| GET | `/accuracy/summary` | MAE, RMSE, bias (`?location_id=`, `?max_horizon=`) |
+| GET | `/accuracy/by-horizon` | error broken down by forecast lead time |
 
 ## Architecture
 

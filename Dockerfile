@@ -49,6 +49,13 @@ WORKDIR /app
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --from=builder --chown=app:app /app/src /app/src
 
+# Alembic config and migration scripts. The API runs `alembic upgrade
+# head` on startup, which needs both the ini (for script_location) and
+# the versions directory. They are copied from the build context, not
+# the builder stage, since the builder never needed them.
+COPY --chown=app:app alembic.ini /app/alembic.ini
+COPY --chown=app:app alembic /app/alembic
+
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app/src" \
     PYTHONUNBUFFERED=1 \

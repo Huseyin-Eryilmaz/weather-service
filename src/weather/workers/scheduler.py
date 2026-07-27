@@ -40,6 +40,7 @@ def build_scheduler(
     session_factory: async_sessionmaker,
     client: OpenMeteoClient,
     *,
+    cache: object | None = None,
     forecast_days: int = 7,
 ) -> AsyncIOScheduler:
     """Wires the jobs onto a clock and returns the (unstarted) scheduler."""

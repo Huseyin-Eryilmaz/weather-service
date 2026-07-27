@@ -17,6 +17,7 @@ import asyncio
 import signal
 
 import httpx
+import redis.asyncio as aioredis
 import structlog
 
 from weather.clients.open_meteo import OpenMeteoClient
@@ -28,6 +29,7 @@ from weather.workers.jobs import (
     collect_observations,
     compute_all_accuracy,
 )
+from weather.workers.metrics import record_run
 from weather.workers.scheduler import build_scheduler
 
 log = structlog.get_logger()
@@ -50,12 +52,31 @@ async def run_once() -> None:
     factory = make_session_factory(engine)
 
     timeout = httpx.Timeout(settings.http_timeout_seconds)
+    cache = aioredis.from_url(str(settings.redis_url), decode_responses=True)
     async with httpx.AsyncClient(timeout=timeout) as http:
         client = _make_client(http)
-        await collect_forecasts(factory, client)
-        await collect_observations(factory, client)
+        # Record each run's outcome to the heartbeat, exactly as the
+        # scheduled path does — so a one-shot run also shows up at /status,
+        # not just runs triggered by the clock.
+        forecasts = await collect_forecasts(factory, client)
+        await record_run(
+            cache,
+            "forecasts",
+            succeeded=forecasts.succeeded,
+            failed=forecasts.failed,
+            rows=forecasts.rows,
+        )
+        observations = await collect_observations(factory, client)
+        await record_run(
+            cache,
+            "observations",
+            succeeded=observations.succeeded,
+            failed=observations.failed,
+            rows=observations.rows,
+        )
         await compute_all_accuracy(factory)
 
+    await cache.aclose()
     await engine.dispose()
 
 
@@ -68,7 +89,8 @@ async def run_forever() -> None:
     timeout = httpx.Timeout(settings.http_timeout_seconds)
     async with httpx.AsyncClient(timeout=timeout) as http:
         client = _make_client(http)
-        scheduler = build_scheduler(factory, client)
+        cache = aioredis.from_url(str(settings.redis_url), decode_responses=True)
+        scheduler = build_scheduler(factory, client, cache=cache)
 
         # A future that a signal handler resolves, so the process waits
         # here until the OS asks it to stop — the clean way to keep an
@@ -89,6 +111,7 @@ async def run_forever() -> None:
             await stop
         finally:
             scheduler.shutdown(wait=False)
+            await cache.aclose()
             log.info("scheduler_stopped")
 
     await engine.dispose()

@@ -74,10 +74,11 @@ current-conditions query is served from Redis.
 **Acceptance:** the error of a location's temperature forecasts, and how
 it grows with lead time, are each one API call.
 
-## Phase 7 — Observability
-- [ ] Request/response logging with correlation IDs
-- [ ] Job metrics
-- [ ] Deeper health checks
+## Phase 7 — Observability `v0.7.0` ✅
+- [x] Request correlation IDs, echoed in the `X-Request-ID` header
+- [x] One structured log line per request (method, path, status, duration)
+- [x] Worker heartbeat in Redis: last run, rows, successes, failures
+- [x] `/status` endpoint exposing whether collection is still flowing
 
 ## Phase 8 — Frontend foundations
 - [ ] React + Vite + TypeScript + Tailwind

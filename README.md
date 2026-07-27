@@ -4,10 +4,10 @@ A weather data pipeline that collects forecasts and observations for
 Turkish cities, then measures how accurate those forecasts turned out to
 be. REST API, scheduled collection, and a web dashboard.
 
-> 🚧 **Status: Phase 6 (forecast accuracy).** The service now scores its
-> own forecasts against what actually happened — MAE, RMSE, bias, and how
-> error grows with lead time. This is the question the whole pipeline was
-> built to answer. The frontend begins in Phase 8. See the
+> 🚧 **Status: Phase 7 (observability).** Every request carries a
+> correlation id and leaves one structured log line; the worker records a
+> heartbeat after each run, surfaced at `/status`. The backend is now
+> feature-complete — the frontend begins in Phase 8. See the
 > [roadmap](ROADMAP.md).
 
 ## What it does
@@ -68,6 +68,7 @@ In brief:
 | GET | `/locations/{id}/forecasts` | forecasts (`?latest_only=false` for all) |
 | GET | `/accuracy/summary` | MAE, RMSE, bias (`?location_id=`, `?max_horizon=`) |
 | GET | `/accuracy/by-horizon` | error broken down by forecast lead time |
+| GET | `/status` | service info and the worker's last run |
 
 ## Architecture
 

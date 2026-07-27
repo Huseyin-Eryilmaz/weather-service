@@ -23,7 +23,11 @@ from weather.clients.open_meteo import OpenMeteoClient
 from weather.core.config import get_settings
 from weather.core.logging import configure_logging
 from weather.db.base import make_engine, make_session_factory
-from weather.workers.jobs import collect_forecasts, collect_observations
+from weather.workers.jobs import (
+    collect_forecasts,
+    collect_observations,
+    compute_all_accuracy,
+)
 from weather.workers.scheduler import build_scheduler
 
 log = structlog.get_logger()
@@ -50,6 +54,7 @@ async def run_once() -> None:
         client = _make_client(http)
         await collect_forecasts(factory, client)
         await collect_observations(factory, client)
+        await compute_all_accuracy(factory)
 
     await engine.dispose()
 

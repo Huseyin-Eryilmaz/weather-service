@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from weather.clients.ingest import ingest_forecasts, ingest_observations
 from weather.clients.open_meteo import OpenMeteoClient, WeatherAPIError
+from weather.db.accuracy import compute_accuracy
 from weather.db.models import Location
 
 log = structlog.get_logger()
@@ -150,3 +151,15 @@ async def collect_forecasts(
         rows=result.rows,
     )
     return result
+
+
+async def compute_all_accuracy(session_factory: async_sessionmaker) -> int:
+    """Scores every forecast that now has a matching observation.
+
+    A thin wrapper so the scheduler and the one-shot run can trigger the
+    accuracy computation the same way they trigger collection.
+    """
+    async with session_factory() as session:
+        scored = await compute_accuracy(session)
+    log.info("accuracy_run_finished", pairs=scored)
+    return scored

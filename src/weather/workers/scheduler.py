@@ -28,7 +28,10 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from weather.clients.open_meteo import OpenMeteoClient
-from weather.workers.jobs import collect_forecasts, collect_observations
+from weather.workers.jobs import (
+    collect_forecasts,
+    collect_observations,
+)
 
 log = structlog.get_logger()
 

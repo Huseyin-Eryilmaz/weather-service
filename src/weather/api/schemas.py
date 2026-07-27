@@ -89,3 +89,31 @@ class ForecastPoint(BaseModel):
 
 class ForecastPage(Page):
     items: list[ForecastPoint]
+
+
+class ErrorStatsOut(BaseModel):
+    """The three error measures for a set of forecast/observation pairs."""
+
+    count: int
+    mae: float
+    rmse: float
+    bias: float
+
+
+class AccuracySummaryOut(BaseModel):
+    """An accuracy summary, or an explicit note that there is nothing yet."""
+
+    location_id: int | None = None
+    metric: str
+    stats: ErrorStatsOut | None = None
+
+
+class HorizonBucketOut(BaseModel):
+    horizon_hours: int
+    stats: ErrorStatsOut
+
+
+class AccuracyByHorizonOut(BaseModel):
+    location_id: int | None = None
+    metric: str
+    buckets: list[HorizonBucketOut]

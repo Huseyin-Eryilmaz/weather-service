@@ -111,8 +111,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
+    from weather.api.middleware import RequestContextMiddleware
+
+    app.add_middleware(RequestContextMiddleware)
+
     from weather.api.ratelimit import enforce_rate_limit
     from weather.api.routers import accuracy, locations
+    from weather.api.routers import status as status_router
     from weather.api.routers import weather as weather_router
 
     # Rate limiting applies to every route, so it is a router-level
@@ -122,6 +127,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         weather_router.router, dependencies=[Depends(enforce_rate_limit)]
     )
     app.include_router(accuracy.router, dependencies=[Depends(enforce_rate_limit)])
+    app.include_router(status_router.router, dependencies=[Depends(enforce_rate_limit)])
 
     @app.get("/health/live", response_model=HealthResponse, tags=["health"])
     async def health_live() -> HealthResponse:

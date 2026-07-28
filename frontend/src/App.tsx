@@ -1,3 +1,4 @@
+import './App.css'
 import { useState, useEffect } from 'react'
 import LocationCard from './components/LocationCard'
 import type { Location, Weather } from './types'
@@ -82,39 +83,51 @@ function App() {
   )
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
-      <h1>Konumlar ({locations.length})</h1>
-      {selectedId && (
-        <div style={{ padding: '1rem', marginBottom: '1rem', border: '1px solid #ccc' }}>
-          {weatherLoading && <p>Hava durumu yükleniyor...</p>}
-          {weatherError && <p style={{ color: 'red' }}>Hata: {weatherError}</p>}
-          {weather && (
+  <div className="container">
+    <h1 className="title">Konumlar ({filteredLocations.length})</h1>
+
+    {selectedId && (
+      <div className="weather-panel">
+        {weatherLoading && <p>Hava durumu yükleniyor...</p>}
+        {weatherError && <p style={{ color: 'red' }}>Hata: {weatherError}</p>}
+        {weather && (
+          <div className="weather-stats">
             <div>
-              <strong>Sıcaklık:</strong> {weather.temperature_c}°C{' '}
-              <strong>Nem:</strong> {weather.humidity_pct}%{' '}
-              <strong>Rüzgar:</strong> {weather.wind_speed_kmh} km/s
+              <div className="weather-stat-label">Sıcaklık</div>
+              <div className="weather-stat-value">{weather.temperature_c}°C</div>
             </div>
-          )}
-        </div>
-      )}
-      <input
-        type="text"
-        placeholder="Şehir ara..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{ padding: '0.5rem', fontSize: '1rem', marginBottom: '1rem' }}
-      />
-      <ul>
-        {filteredLocations.map((location) => (
-          <LocationCard
-            key={location.id}
-            location={location}
-            onSelect={setSelectedId}
-          />
-        ))}
-      </ul>
-    </div>
-  )
-}
+            <div>
+              <div className="weather-stat-label">Nem</div>
+              <div className="weather-stat-value">{weather.humidity_pct}%</div>
+            </div>
+            <div>
+              <div className="weather-stat-label">Rüzgar</div>
+              <div className="weather-stat-value">{weather.wind_speed_kmh} km/s</div>
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+
+    <input
+      type="text"
+      className="search-box"
+      placeholder="Şehir ara..."
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+    />
+
+    <ul className="location-list">
+      {filteredLocations.map((location) => (
+        <LocationCard
+          key={location.id}
+          location={location}
+          onSelect={setSelectedId}
+          isSelected={location.id === selectedId}
+        />
+      ))}
+    </ul>
+  </div>
+)}
 
 export default App

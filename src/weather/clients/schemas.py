@@ -30,6 +30,7 @@ class HourlyBlock(BaseModel):
     relative_humidity_2m: list[float | None] = []
     wind_speed_10m: list[float | None] = []
     precipitation: list[float | None] = []
+    weather_code: list[int | None] = []
 
     @model_validator(mode="after")
     def _arrays_line_up(self) -> HourlyBlock:
@@ -45,6 +46,7 @@ class HourlyBlock(BaseModel):
             "relative_humidity_2m",
             "wind_speed_10m",
             "precipitation",
+            "weather_code",
         ):
             series = getattr(self, name)
             if series and len(series) != n:
@@ -60,6 +62,7 @@ class WeatherReading(BaseModel):
     humidity_pct: float | None = None
     wind_speed_kmh: float | None = None
     precipitation_mm: float | None = None
+    weather_code: int | None = None
 
 
 class ForecastResponse(BaseModel):
@@ -73,7 +76,7 @@ class ForecastResponse(BaseModel):
         """Transposes the parallel arrays into one reading per hour."""
         hourly = self.hourly
 
-        def at(series: list[float | None], index: int) -> float | None:
+        def at(series: list, index: int):
             return series[index] if index < len(series) else None
 
         return [
@@ -83,6 +86,7 @@ class ForecastResponse(BaseModel):
                 humidity_pct=at(hourly.relative_humidity_2m, i),
                 wind_speed_kmh=at(hourly.wind_speed_10m, i),
                 precipitation_mm=at(hourly.precipitation, i),
+                weather_code=at(hourly.weather_code, i),
             )
             for i, timestamp in enumerate(hourly.time)
         ]

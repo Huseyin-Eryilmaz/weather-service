@@ -80,6 +80,11 @@ class Observation(Base):
     humidity_pct: Mapped[float | None] = mapped_column(Float)
     wind_speed_kmh: Mapped[float | None] = mapped_column(Float)
     precipitation_mm: Mapped[float | None] = mapped_column(Float)
+    # WMO weather code (0 = clear, 1-3 = increasing cloud, 45 = fog,
+    # 61 = rain, 95 = thunderstorm, ...). Stored as the raw number; the
+    # frontend maps it to a label and icon. Nullable, since older rows
+    # predate it and the API does not always supply it.
+    weather_code: Mapped[int | None] = mapped_column(Integer)
 
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -113,6 +118,8 @@ class Forecast(Base):
     humidity_pct: Mapped[float | None] = mapped_column(Float)
     wind_speed_kmh: Mapped[float | None] = mapped_column(Float)
     precipitation_mm: Mapped[float | None] = mapped_column(Float)
+    # WMO weather code; see Observation.weather_code.
+    weather_code: Mapped[int | None] = mapped_column(Integer)
 
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

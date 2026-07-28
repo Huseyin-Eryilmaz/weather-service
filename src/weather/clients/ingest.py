@@ -94,6 +94,7 @@ async def ingest_forecasts(
                 humidity_pct=reading.humidity_pct,
                 wind_speed_kmh=reading.wind_speed_kmh,
                 precipitation_mm=reading.precipitation_mm,
+                weather_code=reading.weather_code,
             )
             stored += 1
 
@@ -113,4 +114,5 @@ async def _store_observation(
         humidity_pct=reading.humidity_pct,
         wind_speed_kmh=reading.wind_speed_kmh,
         precipitation_mm=reading.precipitation_mm,
+        weather_code=reading.weather_code,
     )

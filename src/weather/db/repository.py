@@ -58,6 +58,7 @@ async def upsert_observation(
     humidity_pct: float | None = None,
     wind_speed_kmh: float | None = None,
     precipitation_mm: float | None = None,
+    weather_code: int | None = None,
 ) -> None:
     """Inserts or refreshes one observation for a location and hour."""
     values = {
@@ -67,6 +68,7 @@ async def upsert_observation(
         "humidity_pct": humidity_pct,
         "wind_speed_kmh": wind_speed_kmh,
         "precipitation_mm": precipitation_mm,
+        "weather_code": weather_code,
     }
     statement = pg_insert(Observation).values(**values)
     # On a repeat, refresh the measurements — a later fetch may carry a
@@ -78,6 +80,7 @@ async def upsert_observation(
             "humidity_pct": statement.excluded.humidity_pct,
             "wind_speed_kmh": statement.excluded.wind_speed_kmh,
             "precipitation_mm": statement.excluded.precipitation_mm,
+            "weather_code": statement.excluded.weather_code,
         },
     )
     await session.execute(statement)
@@ -93,6 +96,7 @@ async def upsert_forecast(
     humidity_pct: float | None = None,
     wind_speed_kmh: float | None = None,
     precipitation_mm: float | None = None,
+    weather_code: int | None = None,
 ) -> None:
     """Inserts or refreshes one forecast reading."""
     values = {
@@ -103,6 +107,7 @@ async def upsert_forecast(
         "humidity_pct": humidity_pct,
         "wind_speed_kmh": wind_speed_kmh,
         "precipitation_mm": precipitation_mm,
+        "weather_code": weather_code,
     }
     statement = pg_insert(Forecast).values(**values)
     statement = statement.on_conflict_do_update(
@@ -112,6 +117,7 @@ async def upsert_forecast(
             "humidity_pct": statement.excluded.humidity_pct,
             "wind_speed_kmh": statement.excluded.wind_speed_kmh,
             "precipitation_mm": statement.excluded.precipitation_mm,
+            "weather_code": statement.excluded.weather_code,
         },
     )
     await session.execute(statement)

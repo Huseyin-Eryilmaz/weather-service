@@ -57,6 +57,7 @@ class WeatherPoint(BaseModel):
     humidity_pct: float | None = None
     wind_speed_kmh: float | None = None
     precipitation_mm: float | None = None
+    weather_code: int | None = None
 
 
 class Page(BaseModel):
@@ -85,6 +86,7 @@ class ForecastPoint(BaseModel):
     humidity_pct: float | None = None
     wind_speed_kmh: float | None = None
     precipitation_mm: float | None = None
+    weather_code: int | None = None
 
 
 class ForecastPage(Page):

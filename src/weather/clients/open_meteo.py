@@ -37,6 +37,7 @@ _HOURLY_VARIABLES = (
     "relative_humidity_2m",
     "wind_speed_10m",
     "precipitation",
+    "weather_code",
 )
 
 

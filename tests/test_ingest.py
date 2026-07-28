@@ -143,3 +143,54 @@ async def test_re_ingesting_the_same_hours_does_not_duplicate(db_session):
 
     count = await db_session.scalar(select(func.count()).select_from(Observation))
     assert count == 4  # not 12
+
+
+async def test_weather_code_is_stored_with_observations(db_session):
+    """The WMO weather code flows from the API response into storage,
+    alongside the numeric measurements."""
+    import json
+    from datetime import datetime
+    from pathlib import Path
+
+    import httpx
+    from sqlalchemy import select, text
+
+    from weather.clients.ingest import ingest_observations
+    from weather.clients.open_meteo import OpenMeteoClient
+    from weather.db.models import Location
+    from weather.db.repository import upsert_location
+
+    await upsert_location(db_session, name="Ankara", latitude=39.93, longitude=32.85)
+    await db_session.commit()
+    loc_id = await db_session.scalar(select(Location.id))
+
+    fixture = json.loads(
+        (Path(__file__).parent / "fixtures" / "forecast_ankara.json").read_text()
+    )
+
+    def handler(request):
+        return httpx.Response(200, json=fixture)
+
+    client = OpenMeteoClient(
+        httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        forecast_url="http://f",
+        archive_url="http://a",
+    )
+    # a "now" after the fixture's hours so they count as observations
+    now = datetime(2026, 7, 25, 12, tzinfo=UTC)
+    await ingest_observations(
+        db_session, client, location_id=loc_id, latitude=39.93, longitude=32.85, now=now
+    )
+    await db_session.commit()
+
+    codes = (
+        await db_session.execute(
+            text(
+                "SELECT weather_code FROM observations "
+                "WHERE location_id=:l AND weather_code IS NOT NULL"
+            ),
+            {"l": loc_id},
+        )
+    ).all()
+    # the fixture carries codes, so at least one row should have one stored
+    assert len(codes) > 0

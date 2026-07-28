@@ -2,6 +2,7 @@ import './App.css'
 import { useState, useEffect } from 'react'
 import LocationCard from './components/LocationCard'
 import type { Location, Weather } from './types'
+import { describeWeather } from './weatherCodes'
 
 function App() {
   const [locations, setLocations] = useState<Location[]>([])
@@ -92,6 +93,10 @@ function App() {
         {weatherError && <p style={{ color: 'red' }}>Hata: {weatherError}</p>}
         {weather && (
           <div className="weather-stats">
+            <div>
+              <div className="weather-stat-label">Durum</div>
+              <div className="weather-stat-value">{describeWeather(weather.weather_code)}</div>
+            </div>
             <div>
               <div className="weather-stat-label">Sıcaklık</div>
               <div className="weather-stat-value">{weather.temperature_c}°C</div>

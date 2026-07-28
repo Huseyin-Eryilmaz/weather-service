@@ -14,4 +14,5 @@ export interface Weather {
   humidity_pct: number
   wind_speed_kmh: number
   precipitation_mm: number
+  weather_code: number | null
 }

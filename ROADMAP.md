@@ -80,21 +80,25 @@ it grows with lead time, are each one API call.
 - [x] Worker heartbeat in Redis: last run, rows, successes, failures
 - [x] `/status` endpoint exposing whether collection is still flowing
 
-## Phase 8 — Frontend foundations
-- [ ] React + Vite + TypeScript + Tailwind
-- [ ] API client, layout, routing
+## Phase 8 — Frontend foundations `✅`
+- [x] React + Vite + TypeScript
+- [x] API client, environment-based config, backend connectivity
 
-## Phase 9 — Frontend data
-- [ ] Location list and search
-- [ ] Current conditions and history charts
-- [ ] Loading and error states
+## Phase 9 — Frontend data `✅`
+- [x] Location list with typed interfaces
+- [x] Loading / error / loaded states
+- [x] LocationCard component
 
-## Phase 10 — Accuracy dashboard
-- [ ] Forecast-vs-actual charts
-- [ ] Error by horizon
-- [ ] Location comparison
+## Phase 10 — Interaction `✅`
+- [x] City search (controlled input, live filtering)
+- [x] Click a city to view its current conditions
+- [x] Card-based UI with hover and selection
 
-## Phase 11 — Showcase `v1.0.0`
-- [ ] README with architecture and screenshots
-- [ ] Deployment notes
-- [ ] Release
+## Mini-phase — weather_code `✅`
+- [x] WMO weather code added through the full stack (client, model,
+      migration, repository, API, frontend), rendered as an icon + label
+
+## Phase 11 — Showcase `v1.0.0` `✅`
+- [x] README with Mermaid architecture diagram and screenshots
+- [x] Feature summary, tech stack, project layout
+- [x] Release
